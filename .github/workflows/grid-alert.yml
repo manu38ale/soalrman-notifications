@@ -19,6 +19,7 @@ jobs:
           SOLARMAN_APP_SECRET: ${{ secrets.SOLARMAN_APP_SECRET }}
           SOLARMAN_EMAIL: ${{ secrets.SOLARMAN_EMAIL }}
           SOLARMAN_PASSWORD: ${{ secrets.SOLARMAN_PASSWORD }}
+          SOLARMAN_DEVICE_SN: ${{ secrets.SOLARMAN_DEVICE_SN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node grid-alert-poller.js
