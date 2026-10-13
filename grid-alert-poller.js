@@ -8,9 +8,14 @@
  *   2. Resolves the plant (station) id (discovered once via --probe, then cached in state).
  *   3. Reads station real-time data and derives grid presence from purchased power.
  *   4. Debounced state machine (2 agreeing polls before a state change), persisted in a state file.
- *   5. On down -> up transition, sends a Telegram DM via @museisposting_bot.
+ *   5. On grid transitions (down -> up AND up -> down), sends a Telegram DM via
+ *      @museisposting_bot.
  *   6. Also checks inverter/device alarms each poll (best-effort); new alarms
  *      trigger a Telegram DM too. Every notification includes a status summary.
+ *
+ * State commits: the state file only changes when something meaningful happens
+ * (grid transition, debounce counter, alarms). Steady polls write nothing, so
+ * scheduled runs stay quiet.
  *
  * Secrets come ONLY from environment variables. Tokens are never logged verbatim.
  *
@@ -393,26 +398,30 @@ async function checkAlarms(token, stationId, state) {
     const summaryFor = (up) => invList ? buildInverterSummary(invList, up) : buildSummary(item, up);
 
     if (prev === null) {
-      state = { ...state, gridUp: gridUpNow, agree: 1, lastPoll: nowHavana() };
+      state = { ...state, gridUp: gridUpNow, agree: 1 };
       saveState(state);
       console.log(`initial state: grid ${gridUpNow ? 'UP' : 'DOWN'} (${gridDetail})`);
       return;
     }
 
     if (gridUpNow === prev) {
-      state.agree = 0; state.lastPoll = nowHavana(); saveState(state);
+      // Steady: only write if there is something to reset (avoids a commit every poll).
+      if (state.agree !== 0) { state.agree = 0; saveState(state); }
       console.log(`steady: grid ${prev ? 'UP' : 'DOWN'} (${gridDetail})`);
     } else {
       state.agree = (state.agree || 0) + 1;
       if (state.agree >= AGREE_POLLS) {
         const wasDown = !prev && gridUpNow;
-        state = { ...state, gridUp: gridUpNow, agree: 0, lastPoll: nowHavana(), lastChange: nowHavana() };
+        const wasUp = prev && !gridUpNow;
+        state = { ...state, gridUp: gridUpNow, agree: 0, lastChange: nowHavana() };
         if (wasDown) {
           await sendTelegram(`⚡ <b>Volvió la corriente</b> (${nowHavana()})\n${escapeHtml(summaryFor(true))}`);
-          console.log('telegram alert sent');
+          console.log('telegram alert sent (grid restored)');
+        } else if (wasUp) {
+          await sendTelegram(`🔌 <b>Se fue la corriente</b> (${nowHavana()})\n${escapeHtml(summaryFor(false))}`);
+          console.log('telegram alert sent (grid down)');
         }
       } else {
-        state.lastPoll = nowHavana();
         console.log(`flap guard: ${state.agree}/${AGREE_POLLS} agreeing polls (${gridDetail})`);
       }
       saveState(state);
