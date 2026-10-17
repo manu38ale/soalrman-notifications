@@ -1,8 +1,8 @@
 {
   "stationId": 66386562,
-  "gridUp": true,
-  "agree": 1,
+  "gridUp": false,
+  "agree": 0,
   "lastPoll": "13/10/2026, 19:50:24",
   "deviceSns": [],
-  "lastChange": "16/10/2026, 17:26:34"
+  "lastChange": "17/10/2026, 10:51:05"
 }
